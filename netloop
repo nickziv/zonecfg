@@ -1,0 +1,28 @@
+#!/usr/bin/ksh
+
+# On some machines, the network connection may dissappear periodically. Nwam is
+# smart enough to reconnect to network. However, nwam also disable ipfilter
+# (and it leaks lots of memory), which is unacceptable. Below we set up a loop
+# that restarts all networking every five minutes.
+
+while [[ 1 ]]; do
+
+	echo "----"
+	echo "unplumbing"
+	ifconfig ath0 unplumb
+	echo "plumbing"
+	ifconfig ath0 plumb
+	echo "upping"
+	ifconfig ath0 up
+	echo "restarting"
+	svcadm restart physical:default
+	echo "connecting"
+	dladm connect-wifi -e IIT-WiFi ath0
+	echo "dhcping"
+	ifconfig ath0 dhcp
+	echo "enabling"
+	svcadm enable ipfilter
+	echo "sleeping"
+	sleep 300
+
+done

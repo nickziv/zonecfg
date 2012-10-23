@@ -1,0 +1,5 @@
+#!/usr/bin/ksh
+
+grep "192.168.127." /etc/netmasks ||  echo "192.168.127.0   255.255.255.0" >> /etc/netmasks
+echo "192.168.127.1" > /etc/hostname.vnic127001
+ifconfig vnic127001 plumb 192.168.127.1/24 up

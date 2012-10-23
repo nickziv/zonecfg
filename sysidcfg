@@ -1,0 +1,9 @@
+# belongs in <zpath>/root/etc/sysidcfg
+terminal=xterms
+network_interface=PRIMARY {dhcp protocol_ipv6=no}
+security_policy=none
+name_service=NONE
+nfs4_domain=dynamic
+timezone=UTC
+root_password=fto/dU8MKwQRI
+# root pwd is abc123

@@ -1,0 +1,6 @@
+#!/usr/bin/ksh
+
+pkg install service/network/dhcp
+svccfg import /lib/svc/manifest/network/dhcp-server.xml
+svcs -a | grep -i dhcp
+#disabled       16:51:37 svc:/network/dhcp-server:default

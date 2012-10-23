@@ -1,0 +1,116 @@
+This set of scripts is meant to be used with openindiana.org wiki page on Host
+Only Networking:
+
+http://wiki.openindiana.org/oi/Using+host-only+networking+to+get+from+build+zones+and+test+VMs+to+the+Internet
+
+Here I reuse the content that is on the wiki page, to describe how to use the
+scripts.
+
+Overview
+--------
+
+The idea is to create an initial zone that can be used a template for future
+zones. These future zones should be provisioned quickly via ZFS clones.
+
+The basic setup is to have zones with exclusive ip stacks. This means that
+every zone will have its own personal vnic. Each zone will be allocated at IPv4
+address from 192.168.127.[1..MAX] set of addresses. In fact, each zone:vnic
+pair can be identified via the IP address they share. For example, look at the
+zones on my system.
+
+	nickziv@basestar:/home/nickziv$ zoneadm list -cv             
+	  ID NAME             STATUS     PATH                           BRAND    IP    
+	   0 global    running    /                              ipkg     shared
+	  50 127107    running    /zones/net/127107              ipkg     excl  
+	  51 127106    running    /zones/ilms-bld/127106         ipkg     excl  
+	  52 127105    running    /zones/ilms-bld/127105         ipkg     excl  
+	  53 127104    running    /zones/ilms-bld/127104         ipkg     excl  
+	   - zone1     configured /zones/illumos-build/zone1     ipkg     shared
+	   - zone2     installed  /zones/illumos-build/zone2     ipkg     excl  
+	   - zone127101  installed  /zones/ilms-bld/zone127101     ipkg     excl
+	   - 127102    installed  /zones/ilms-bld/127102         ipkg     excl  
+	   - 127103    installed  /zones/ilms-bld/127103         ipkg     excl  
+
+And now look at the vnics.
+
+	nickziv@basestar:/home/nickziv$ pfexec dladm show-vnic
+	LINK         OVER         SPEED  MACADDRESS        MACADDRTYPE         VID
+	vnic2        ethstub0     0      2:8:20:d7:93:d3   random              0
+	vnic127001   stub127      0      2:8:20:c7:e2:a1   random              0
+	vnic127101   stub127      0      0:12:71:27:1:1    fixed               0
+	vnic127102   stub127      0      0:12:71:27:1:2    fixed               0
+	vnic127105   stub127      0      0:12:71:27:1:5    fixed               0
+	vnic127106   stub127      0      0:12:71:27:1:6    fixed               0
+	vnic127104   stub127      0      0:12:71:27:1:4    fixed               0
+	vnic127103   stub127      0      0:12:71:27:1:3    fixed               0
+	vnic127107   stub127      0      0:12:71:27:1:7    fixed               0
+
+Every zone called N corresponds to every vnic called vnicN. The only reason
+zones aren's named "zoneN" is brevity.
+
+All of the vnic's share the same etherstub (stub127). The mac addresses mirror
+the ip addresses (or vnic name, depending on how you look at it).
+
+vnic127001, doesn't belong to any NGZ. It is property of the GZ, and is used to
+route traffic to the other vnics.
+
+All zones expect to be fed IP addresses via DHCP.
+
+Also, for a zone to access the internet, ip-forwarding (via ipfilter) has to be
+enabled, as does routing.
+
+In general, use zonecfg to configure a new zone. Then install it via zoneadm.
+Once the installation completes, copy the sysidcfg in this repo into the
+zone-root's /etc.
+
+Install and config the DHCP server in the global zone.
+
+	./getdhcp
+
+	dhcpconfig -r SUNWfiles -p /var/dhcp -D -d `domainname` -a 8.8.8.8 -l 86400
+
+	./dhcp-hostonly
+
+	./dhcp-subnet
+
+	./dhcp-merge
+
+Reserve fixed addresses.
+
+	./fixed-addrs
+
+Copy (from this repo) the ipnat.conf and ipf.conf into /etc/ipf/.
+
+Reset ipf via:
+
+	./resetipf
+	svcadm enable ipfilter #if ipfilter is offline
+
+	OR
+
+	./resetipf
+	svcadm restart ipfilter #if ipfilter was already running
+
+Enable ipv4 forwarding and routing.
+
+	./ip4route
+
+Once the reference zone has been created, one can use zclone to create zones
+that are clones of this reference zone (and clones of those zones).
+
+	./zclone ilms-bld zone127101 127102
+
+The above will create a clone of zone127101 called 127102. This zone is
+identical to the original zone, except its vnic is different. `zlone` copies
+the network configs (resolv.conf and nsswitch.conf) from the global zone into
+the local zone. `zclone` waits 1 minute for the zone to boot, before it logs
+in, and enables dns/client and dns/multicast services. Then the zone is fit for
+use, and re-cloning.
+
+Bonus:
+
+if you are constantly being kicked off of the network (if you are on a wireless
+college campus for example), you can run the ./netloop script.
+
+This will reconnect to the network every 5 mins. This is necessary (instead of
+nwam), because nwam doesn't restart ipfilter.

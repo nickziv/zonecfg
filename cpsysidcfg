@@ -1,0 +1,3 @@
+#!/usr/bin/ksh
+
+cp sysidcfg $1"/root/etc/sysidcfg"

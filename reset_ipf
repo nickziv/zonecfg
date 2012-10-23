@@ -1,0 +1,7 @@
+#!/usr/bin/ksh
+
+# Don't forget to enable/restart ipfilter from SMF after running this script.
+
+svccfg -s svc:/network/ipfilter:default setprop firewall_config_default/policy=custom
+svccfg -s svc:/network/ipfilter:default setprop firewall_config_default/custom_policy_file=/etc/ipf/ipf.conf
+svcadm refresh ipfilter

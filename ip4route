@@ -1,0 +1,4 @@
+#!/usr/bin/ksh
+
+routeadm -e ipv4-forwarding
+routeadm -u

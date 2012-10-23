@@ -1,0 +1,74 @@
+#!/bin/ksh
+
+# arg1 is the name space
+# arg2 is the vnic number; we use vnic numbers as zone-names
+# arg3 is the clonable zone
+# arg4 is the optional snapshot name
+
+# pfexec ./zclone ilms-bld 127102 zone127101
+
+
+# The zone configuration
+zcfg="create
+set autoboot=true
+set zonepath=/zones/$1/$2
+set ip-type=exclusive
+add net
+set physical=vnic$2
+end
+exit"
+
+
+# The vnic to be used by the NGZ 
+macaddr_tail=$2
+macaddr_head="00:12:71:27:0"
+macaddr=$macaddr_head
+macaddr=$macaddr${macaddr_tail:3:1}":"
+macaddr=$macaddr${macaddr_tail:4:2}
+echo "Creating VNIC"
+dladm create-vnic -l stub127 -m $macaddr vnic$2
+
+# We use a temporary file to store the cfg, so that zonecfg is non-interactive
+echo "Creating tempoorary config"
+echo "$zcfg" > tmpzcfg
+
+echo "Configuring zone"
+zonecfg -z $2 -f tmpzcfg
+
+echo "Removing temporary config"
+rm tmpzcfg
+
+# We assume that $3 is the installed, cloneable base-NGZ.
+
+if [[ $# == "4" ]]; then
+	echo "Cloning zone from snapshot"
+	zoneadm -z $2 -s $4 clone $3
+fi
+
+if [[ $# == "3" ]]; then 
+	echo "Cloning zone from base"
+	zoneadm -z $2 clone $3
+fi
+
+# Copy sysidcfg to clone's root 
+echo "Transplanting sysidcfg"
+cp sysidcfg /zones/$1/$2/root/etc/
+
+# Boot the clone
+echo "Booting the zone"
+zoneadm -z $2 boot
+
+# We sleep for a minute so that the zone can boot
+echo "Waiting for zone to boot..."
+sleep 120
+
+# After we boot, we copy the GZ netcfg to the NGZ root
+echo "Copying GZ netconfig to NGZ root"
+cp /etc/resolv.conf /etc/nsswitch.conf /zones/$1/$2/root/etc/
+
+# We enable dns in the NGZ
+echo "Enabling multicast DNS in NGZ"
+zlogin -S $2 svcadm enable dns/multicast:default
+echo "Enabling DNS client in NGZ"
+zlogin -S $2 svcadm enable dns/client:default
+echo "Done"

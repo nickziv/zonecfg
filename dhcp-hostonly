@@ -1,0 +1,16 @@
+#!/usr/bin/ksh
+
+echo "INTERFACES=vnic127001" >> /etc/inet/dhcpsvc.conf
+
+/etc/init.d/dhcp stop
+/etc/init.d/dhcp start
+ 
+svcs -p dhcp-server
+#STATE          STIME    FMRI
+#online         17:44:51 svc:/network/dhcp-server:default
+#               17:44:51    26974 in.dhcpd
+ 
+netstat -an | grep -w 67
+#255.255.255.255.67                        Idle
+#192.168.127.0.67                          Idle
+#192.168.127.1.67                          Idle
