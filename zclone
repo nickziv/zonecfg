@@ -60,7 +60,7 @@ zoneadm -z $2 boot
 
 # We sleep for a minute so that the zone can boot
 echo "Waiting for zone to boot..."
-sleep 120
+sleep 60
 
 # After we boot, we copy the GZ netcfg to the NGZ root
 echo "Copying GZ netconfig to NGZ root"
